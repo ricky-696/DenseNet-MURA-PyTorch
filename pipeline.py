@@ -6,29 +6,6 @@ from torchvision import transforms
 from torch.utils.data import DataLoader, Dataset
 from torchvision.datasets.folder import pil_loader
 
-data_cat = ['train', 'valid'] # data categories
-
-def get_study_level_data(study_type):
-    """
-    Returns a dict, with keys 'train' and 'valid' and respective values as study level dataframes, 
-    these dataframes contain three columns 'Path', 'Count', 'Label'
-    Args:
-        study_type (string): one of the seven study type folder names in 'train/valid/test' dataset 
-    """
-    study_data = {}
-    study_label = {'positive': 1, 'negative': 0}
-    for phase in data_cat:
-        BASE_DIR = 'MURA-v1.0/%s/%s/' % (phase, study_type)
-        patients = list(os.walk(BASE_DIR))[0][1] # list of patient folder names
-        study_data[phase] = pd.DataFrame(columns=['Path', 'Count', 'Label'])
-        i = 0
-        for patient in tqdm(patients): # for each patient folder
-            for study in os.listdir(BASE_DIR + patient): # for each study in that patient folder
-                label = study_label[study.split('_')[1]] # get label 0 or 1
-                path = BASE_DIR + patient + '/' + study + '/' # path to this study
-                study_data[phase].loc[i] = [path, len(os.listdir(path)), label] # add new row
-                i+=1
-    return study_data
 
 class ImageDataset(Dataset):
     """training dataset."""
@@ -58,7 +35,31 @@ class ImageDataset(Dataset):
         sample = {'images': images, 'label': label}
         return sample
 
-def get_dataloaders(data, batch_size=8, study_level=False):
+
+def get_study_level_data(data_dir, study_type, data_cat=['train', 'valid']):
+    """
+    Returns a dict, with keys 'train' and 'valid' and respective values as study level dataframes, 
+    these dataframes contain three columns 'Path', 'Count', 'Label'
+    Args:
+        study_type (string): one of the seven study type folder names in 'train/valid/test' dataset 
+    """
+    study_data = {}
+    study_label = {'positive': 1, 'negative': 0}
+    for phase in data_cat:
+        BASE_DIR = f'{data_dir}/{phase}/{study_type}/'
+        patients = list(os.walk(BASE_DIR))[0][1] # list of patient folder names
+        study_data[phase] = pd.DataFrame(columns=['Path', 'Count', 'Label'])
+        i = 0
+        for patient in tqdm(patients): # for each patient folder
+            for study in os.listdir(BASE_DIR + patient): # for each study in that patient folder
+                label = study_label[study.split('_')[1]] # get label 0 or 1
+                path = BASE_DIR + patient + '/' + study + '/' # path to this study
+                study_data[phase].loc[i] = [path, len(os.listdir(path)), label] # add new row
+                i+=1
+    return study_data
+
+
+def get_dataloaders(data, batch_size=8, data_cat=['train', 'valid'], study_level=False):
     '''
     Returns dataloader pipeline with data augmentation
     '''
@@ -79,6 +80,7 @@ def get_dataloaders(data, batch_size=8, study_level=False):
     image_datasets = {x: ImageDataset(data[x], transform=data_transforms[x]) for x in data_cat}
     dataloaders = {x: DataLoader(image_datasets[x], batch_size=batch_size, shuffle=True, num_workers=4) for x in data_cat}
     return dataloaders
+
 
 if __name__=='main':
     pass
